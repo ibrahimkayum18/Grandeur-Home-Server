@@ -56,6 +56,30 @@ async function run() {
     res.send(result)
   })
 
+  app.patch('/users/admin/:id', async(req, res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)}
+    const updatedDoc =  {
+      $set: {
+        role: 'admin'
+      }
+    }
+    const result = await usersCollection.updateOne(query, updatedDoc)
+    res.send(result)
+  })
+
+  app.patch('/users/agent/:id', async(req, res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)}
+    const updatedDoc =  {
+      $set: {
+        role: 'agent'
+      }
+    }
+    const result = await usersCollection.updateOne(query, updatedDoc)
+    res.send(result)
+  })
+
     //Propert section CRUD Operation
     app.get('/properties', async(req, res) => {
         const result = await propertCollection.find().toArray()
