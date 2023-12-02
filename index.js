@@ -35,8 +35,25 @@ async function run() {
     //users related api
     app.post('/users', async(req, res) => {
       const user = req.body;
-      const result = await reviewsCollection.insertOne(user)
+      const query = {email: user.email}
+      const userExists = await usersCollection.findOne(query)
+      if(userExists){
+        return res.send({message: 'User Already Exists'})
+      }
+      const result = await usersCollection.insertOne(user)
       res.send(result);
+  })
+
+  app.get('/users', async(req, res) => {
+    const result = await usersCollection.find().toArray()
+    res.send(result);
+  })
+
+  app.delete('/users/:id', async(req, res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)}
+    const result = await reviewsCollection.deleteOne(query)
+    res.send(result)
   })
 
     //Propert section CRUD Operation
