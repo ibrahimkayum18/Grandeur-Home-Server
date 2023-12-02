@@ -30,6 +30,14 @@ async function run() {
     const propertCollection = client.db('allProperties').collection('properties')
     const reviewsCollection = client.db('allProperties').collection('reviews')
     const wishlistCollection = client.db('allProperties').collection('wishlists')
+    const usersCollection = client.db('allProperties').collection('users')
+
+    //users related api
+    app.post('/users', async(req, res) => {
+      const user = req.body;
+      const result = await reviewsCollection.insertOne(user)
+      res.send(result);
+  })
 
     //Propert section CRUD Operation
     app.get('/properties', async(req, res) => {
@@ -69,6 +77,25 @@ async function run() {
     app.post('/wishlists',async(req, res) => {
       const propert = req.body;
       const result = await wishlistCollection.insertOne(propert);
+      res.send(result)
+    })
+
+    app.get('/wishlists', async(req, res) => {
+      const result = await wishlistCollection.find().toArray()
+      res.send(result)
+    })
+
+    app.get('/wishlists/:id', async(req, res) => {
+      const id = res.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await wishlistCollection.find(query)
+      res.send(result)
+    })
+
+    app.delete('/wishlists/:id', async(req,res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await wishlistCollection.deleteOne(query)
       res.send(result)
     })
 
