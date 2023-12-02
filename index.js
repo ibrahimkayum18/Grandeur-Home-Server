@@ -1,16 +1,15 @@
-
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config()
+const express = require("express");
+const cors = require("cors");
+var jwt = require("jsonwebtoken");
+require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
 
 //middlewares
-app.use(cors())
-app.use(express.json())
+app.use(cors());
+app.use(express.json());
 
-
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASS}@cluster0.pqcfxjd.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -19,7 +18,7 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
@@ -27,123 +26,183 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const propertCollection = client.db('allProperties').collection('properties')
-    const reviewsCollection = client.db('allProperties').collection('reviews')
-    const wishlistCollection = client.db('allProperties').collection('wishlists')
-    const usersCollection = client.db('allProperties').collection('users')
+    const propertCollection = client
+      .db("allProperties")
+      .collection("properties");
+    const reviewsCollection = client.db("allProperties").collection("reviews");
+    const wishlistCollection = client
+      .db("allProperties")
+      .collection("wishlists");
+    const usersCollection = client.db("allProperties").collection("users");
+
+    //jwt related api
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1hr",
+      });
+      res.send({ token });
+    });
 
     //users related api
-    app.post('/users', async(req, res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
-      const query = {email: user.email}
-      const userExists = await usersCollection.findOne(query)
-      if(userExists){
-        return res.send({message: 'User Already Exists'})
+      const query = { email: user.email };
+      const userExists = await usersCollection.findOne(query);
+      if (userExists) {
+        return res.send({ message: "User Already Exists" });
       }
-      const result = await usersCollection.insertOne(user)
+      const result = await usersCollection.insertOne(user);
       res.send(result);
-  })
+    });
 
-  app.get('/users', async(req, res) => {
-    const result = await usersCollection.find().toArray()
-    res.send(result);
-  })
-
-  app.delete('/users/:id', async(req, res) => {
-    const id = req.params.id;
-    const query = {_id: new ObjectId(id)}
-    const result = await reviewsCollection.deleteOne(query)
-    res.send(result)
-  })
-
-  app.patch('/users/admin/:id', async(req, res) => {
-    const id = req.params.id;
-    const query = {_id: new ObjectId(id)}
-    const updatedDoc =  {
-      $set: {
-        role: 'admin'
+    // Verify Token
+    const verifyToken = (req, res, next) => {
+      console.log(req.headers.authorization);
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "Unauthorize Access" });
       }
-    }
-    const result = await usersCollection.updateOne(query, updatedDoc)
-    res.send(result)
-  })
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "Unauthorize Access" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    };
 
-  app.patch('/users/agent/:id', async(req, res) => {
-    const id = req.params.id;
-    const query = {_id: new ObjectId(id)}
-    const updatedDoc =  {
-      $set: {
-        role: 'agent'
+    app.get("/users", verifyToken, async (req, res) => {
+      // console.log(req.headers);
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/users/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.destroyed.email) {
+        return res.status(403).send({ message: "forbidden access" });
       }
-    }
-    const result = await usersCollection.updateOne(query, updatedDoc)
-    res.send(result)
-  })
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      // res.send(result)
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin";
+      }
+      res.send({ admin });
+    });
+
+    app.get("/users/agent/:email", async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.destroyed.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      // res.send(result)
+      let agent = false;
+      if (user) {
+        admin = user?.role === "agent";
+      }
+      res.send({ agent });
+    });
+
+    app.delete("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await reviewsCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
+    app.patch("/users/agent/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          role: "agent",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
 
     //Propert section CRUD Operation
-    app.get('/properties', async(req, res) => {
-        const result = await propertCollection.find().toArray()
-        res.send(result)
-    })
+    app.get("/properties", async (req, res) => {
+      const result = await propertCollection.find().toArray();
+      res.send(result);
+    });
 
-    app.get('/properties/:id', async(req, res) => {
-        const id = req.params.id;
-        const query = {_id: new ObjectId(id)}
-        const result = await propertCollection.findOne(query)
-        res.send(result)
-    })
-
+    app.get("/properties/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await propertCollection.findOne(query);
+      res.send(result);
+    });
 
     //Review section CRUD Operation
 
-    app.get('/reviews', async(req, res) => {
-        const result = await reviewsCollection.find().toArray()
-        res.send(result)
-    })
+    app.get("/reviews", async (req, res) => {
+      const result = await reviewsCollection.find().toArray();
+      res.send(result);
+    });
 
-    app.get('/reviews/:id', async(req,res) => {
+    app.get("/reviews/:id", async (req, res) => {
       const id = req.params.id;
-      const filter = {__id: new ObjectId(id)}
-      const result = reviewsCollection.find(filter)
-      res.send(result)
-    })
+      const filter = { __id: new ObjectId(id) };
+      const result = reviewsCollection.find(filter);
+      res.send(result);
+    });
 
-    app.post('/reviews', async(req, res) => {
-        const review = req.body;
-        const result = await reviewsCollection.insertOne(review)
-        res.send(result);
-    })
+    app.post("/reviews", async (req, res) => {
+      const review = req.body;
+      const result = await reviewsCollection.insertOne(review);
+      res.send(result);
+    });
 
     //Wishlist section Backend work
-    app.post('/wishlists',async(req, res) => {
+    app.post("/wishlists", async (req, res) => {
       const propert = req.body;
       const result = await wishlistCollection.insertOne(propert);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
-    app.get('/wishlists', async(req, res) => {
-      const result = await wishlistCollection.find().toArray()
-      res.send(result)
-    })
+    app.get("/wishlists", async (req, res) => {
+      const result = await wishlistCollection.find().toArray();
+      res.send(result);
+    });
 
-    app.get('/wishlists/:id', async(req, res) => {
+    app.get("/wishlists/:id", async (req, res) => {
       const id = res.params.id;
-      const query = {_id: new ObjectId(id)}
-      const result = await wishlistCollection.find(query)
-      res.send(result)
-    })
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistCollection.find(query);
+      res.send(result);
+    });
 
-    app.delete('/wishlists/:id', async(req,res) => {
+    app.delete("/wishlists/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)}
-      const result = await wishlistCollection.deleteOne(query)
-      res.send(result)
-    })
-
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistCollection.deleteOne(query);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -151,11 +210,10 @@ async function run() {
 }
 run().catch(console.dir);
 
-
-app.get('/', (req, res) => {
-    res.send('final assignment server is running')
-})
+app.get("/", (req, res) => {
+  res.send("final assignment server is running");
+});
 
 app.listen(port, () => {
-    console.log(`Final Assignment Server Is Running On Port: ${port}`);
-})
+  console.log(`Final Assignment Server Is Running On Port: ${port}`);
+});
