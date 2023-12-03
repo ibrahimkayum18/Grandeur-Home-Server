@@ -78,9 +78,9 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users/admin/:email", async (req, res) => {
-      const email = req.params.email;
-      if (email !== req.destroyed.email) {
+    app.get("/users/admin/:email",verifyToken, async (req, res) => {
+      const email = req.params?.email;
+      if (email !== req.decoded?.email) {
         return res.status(403).send({ message: "forbidden access" });
       }
       const query = { email: email };
@@ -93,9 +93,9 @@ async function run() {
       res.send({ admin });
     });
 
-    app.get("/users/agent/:email", async (req, res) => {
-      const email = req.params.email;
-      if (email !== req.destroyed.email) {
+    app.get("/users/agent/:email",verifyToken, async (req, res) => {
+      const email = req.params?.email;
+      if (email !== req.decoded?.email) {
         return res.status(403).send({ message: "forbidden access" });
       }
       const query = { email: email };
@@ -103,19 +103,19 @@ async function run() {
       // res.send(result)
       let agent = false;
       if (user) {
-        admin = user?.role === "agent";
+        agent = user?.role === "agent";
       }
       res.send({ agent });
     });
 
-    app.delete("/users/:id", async (req, res) => {
+    app.delete("/users/:id",verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await reviewsCollection.deleteOne(query);
       res.send(result);
     });
 
-    app.patch("/users/admin/:id", async (req, res) => {
+    app.get("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updatedDoc = {
@@ -205,6 +205,13 @@ async function run() {
       const id = req.params.id;
       const filter = { __id: new ObjectId(id) };
       const result = reviewsCollection.find(filter);
+      res.send(result);
+    });
+
+    app.delete("/reviews/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { __id: new ObjectId(id) };
+      const result = reviewsCollection.deleteOne(filter);
       res.send(result);
     });
 
