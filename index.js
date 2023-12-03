@@ -152,6 +152,48 @@ async function run() {
       res.send(result);
     });
 
+    app.get('/properties/:email', async(req, res) => {
+      const email = req.params.email;
+      const filter = {agent_email: email}
+      const result = await propertCollection.find(filter)
+      res.send(result)
+    })
+
+    app.put('/properties/:id', async(req, res) => {
+      const id = req.params.id;
+        const data = req.body;
+        const filter = {
+            _id: new ObjectId(id)
+        };
+        const option = {upsert: true}
+        const updateData = {
+            $set: {
+                property_title: data.property_title,
+                property_image: data.property_image,
+                property_location: data.property_location,
+                agent_name: data.agent_name,
+                agent_image: data.agent_image,
+                agent_email: data.agent_email,
+                price_range: data.price_range
+            }
+        }
+        const result = await propertCollection.updateOne(filter, updateData, option)
+        res.send(result)
+    })
+
+    app.delete('/properties/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await propertCollection.deleteOne(query)
+      res.send(result)
+    })
+
+    app.post('/properties', async(req, res) => {
+      const property = req.body;
+      const result = await propertCollection.insertOne(property);
+      res.send(result);
+    })
+
     //Review section CRUD Operation
 
     app.get("/reviews", async (req, res) => {
