@@ -157,7 +157,7 @@ async function run() {
     app.delete("/users/:id",verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await reviewsCollection.deleteOne(query);
+      const result = await usersCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -274,14 +274,21 @@ async function run() {
 
     app.get("/reviews/:id", async (req, res) => {
       const id = req.params.id;
-      const filter = { __id: new ObjectId(id) };
+      const filter = { _id: new ObjectId(id) };
+      const result = reviewsCollection.find(filter);
+      res.send(result);
+    });
+
+    app.get("/reviews_email/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = { reviewer_email: email };
       const result = reviewsCollection.find(filter);
       res.send(result);
     });
 
     app.delete("/reviews/:id", async (req, res) => {
       const id = req.params.id;
-      const filter = { __id: new ObjectId(id) };
+      const filter = { _id: new ObjectId(id) };
       const result = reviewsCollection.deleteOne(filter);
       res.send(result);
     });
