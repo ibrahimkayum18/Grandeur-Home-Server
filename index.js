@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 var jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -8,6 +9,7 @@ const port = process.env.PORT || 5000;
 //middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public"));
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASS}@cluster0.pqcfxjd.mongodb.net/?retryWrites=true&w=majority`;
@@ -34,6 +36,7 @@ async function run() {
       .db("allProperties")
       .collection("wishlists");
     const usersCollection = client.db("allProperties").collection("users");
+    const offeredCollection = client.db("allProperties").collection("offered");
 
     //jwt related api
     app.post("/jwt", async (req, res) => {
@@ -42,6 +45,49 @@ async function run() {
         expiresIn: "1hr",
       });
       res.send({ token });
+    });
+
+    //Offered property related api
+    app.post('/offered', async(req, res) => {
+      const item = req.body;
+      const result = await offeredCollection.insertOne(item)
+      res.send(result)
+    })
+
+    app.get('/offered', async(req, res) => {
+      const result = await offeredCollection.find().toArray()
+      res.send(result)
+    })
+
+    app.get('/offered/buyer_email/:email', async(req, res) => {
+      const email = req.params.email;
+      const query = {buyer_email: email}
+      const result = await offeredCollection.find(query)
+      res.send(result)
+    })
+
+    app.patch("/offered/accept/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: 'accepted'
+        },
+      };
+      const result = await offeredCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
+    app.patch("/offered/reject/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: 'rejected'
+        },
+      };
+      const result = await offeredCollection.updateOne(query, updatedDoc);
+      res.send(result);
     });
 
     //users related api
@@ -115,7 +161,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users/admin/:id", async (req, res) => {
+    app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updatedDoc = {
@@ -181,6 +227,29 @@ async function run() {
         res.send(result)
     })
 
+    app.patch("/properties/verified/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          verification: 'verified'
+        },
+      };
+      const result = await propertCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+    app.patch("/properties/rejected/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          verification: 'rejected'
+        },
+      };
+      const result = await propertCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
     app.delete('/properties/:id', async(req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)}
@@ -193,6 +262,8 @@ async function run() {
       const result = await propertCollection.insertOne(property);
       res.send(result);
     })
+
+    
 
     //Review section CRUD Operation
 
@@ -245,6 +316,25 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await wishlistCollection.deleteOne(query);
       res.send(result);
+    });
+
+
+    //payment
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100)
+    
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types:['card'],
+        
+      });
+    
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
     });
 
     // Send a ping to confirm a successful connection
